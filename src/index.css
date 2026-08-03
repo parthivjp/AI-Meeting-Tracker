@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-pulse-skeleton {
+    animation: pulseSkeleton 1.5s ease-in-out infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseSkeleton {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.quill-editor .ql-container {
+  min-height: 200px;
+  font-size: 14px;
+}
+
+.quill-editor .ql-editor {
+  min-height: 200px;
+}
+
+.dark .quill-editor .ql-toolbar,
+.dark .quill-editor .ql-container {
+  border-color: rgb(51 65 85);
+  background: rgb(30 41 59);
+  color: rgb(226 232 240);
+}
+
+.dark .quill-editor .ql-stroke {
+  stroke: rgb(148 163 184);
+}
+
+.dark .quill-editor .ql-fill {
+  fill: rgb(148 163 184);
+}
+
+.dark .quill-editor .ql-picker-label {
+  color: rgb(148 163 184);
+}
