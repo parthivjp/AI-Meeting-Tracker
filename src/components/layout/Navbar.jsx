@@ -106,7 +106,13 @@ export default function Navbar({ title, onMenuClick }) {
                 <p className="text-sm font-medium text-slate-900 dark:text-white">{user?.name}</p>
                 <p className="text-xs text-slate-500">{user?.email}</p>
               </div>
-              <button className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700">
+              <button
+                onClick={() => {
+                  setShowProfile(false);
+                  navigate('/profile');
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
+              >
                 <User className="h-4 w-4" /> Profile
               </button>
               <button

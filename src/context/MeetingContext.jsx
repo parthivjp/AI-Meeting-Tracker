@@ -1,155 +1,229 @@
-import { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { useAuth } from './AuthContext';
 import {
-  initialMeetings,
-  generateId,
-  simulateAIProcessing,
-  getAllActionItems,
-} from '../data/mockData';
+  getMeetings as apiGetMeetings,
+  getMeetingById as apiGetMeetingById,
+  createMeeting as apiCreateMeeting,
+  updateMeeting as apiUpdateMeeting,
+  deleteMeeting as apiDeleteMeeting,
+  getActionItems as apiGetActionItems,
+  createActionItem as apiCreateActionItem,
+  updateActionItem as apiUpdateActionItem,
+} from '../services/api';
 
 const MeetingContext = createContext(null);
 
+function normalizeMeeting(meeting) {
+  const summaryData = meeting.summary || {};
+  const summary =
+    typeof summaryData === 'string'
+      ? {
+          purpose: summaryData,
+          discussionPoints: meeting.discussionPoints || [],
+          outcomes: meeting.outcomes || [],
+          concerns: meeting.concerns || [],
+          nextSteps: meeting.nextSteps || [],
+        }
+      : {
+          purpose: summaryData.purpose || meeting.purpose || '',
+          discussionPoints: summaryData.discussionPoints || meeting.discussionPoints || [],
+          outcomes: summaryData.outcomes || meeting.outcomes || [],
+          concerns: summaryData.concerns || meeting.concerns || [],
+          nextSteps: summaryData.nextSteps || meeting.nextSteps || [],
+        };
+
+  const decisions = Array.isArray(meeting.decisions)
+    ? meeting.decisions
+    : Array.isArray(meeting.keyDecisions)
+    ? meeting.keyDecisions.map((item) => ({
+        title: typeof item === 'string' ? item : item.title || item.name || '',
+        description: typeof item === 'string' ? '' : item.description || item.detail || '',
+        category: typeof item === 'string' ? 'General' : item.category || 'General',
+      }))
+    : [];
+
+  return {
+    ...meeting,
+    id: meeting.id || meeting._id,
+    status: meeting.status || 'processed',
+    participants: meeting.participants || [],
+    summary,
+    decisions,
+  };
+}
+
 export function MeetingProvider({ children }) {
-  const [meetings, setMeetings] = useState(() => {
-    const saved = localStorage.getItem('meetai_meetings');
-    return saved ? JSON.parse(saved) : initialMeetings;
-  });
+  const { user } = useAuth();
+  const [meetings, setMeetings] = useState([]);
+  const [actionItems, setActionItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState(0);
 
-  const persist = useCallback((updated) => {
-    setMeetings(updated);
-    localStorage.setItem('meetai_meetings', JSON.stringify(updated));
-  }, []);
+  const loadData = useCallback(async () => {
+    if (!user) {
+      setMeetings([]);
+      setActionItems([]);
+      setLoading(false);
+      return;
+    }
 
-  const getMeetings = useCallback(() => meetings, [meetings]);
+    setLoading(true);
+    try {
+      const [meetingsRes, actionItemsRes] = await Promise.all([
+        apiGetMeetings(),
+        apiGetActionItems(),
+      ]);
+      setMeetings(meetingsRes || []);
+      setActionItems(actionItemsRes || []);
+    } catch (error) {
+      console.error('Failed to load meetings or action items', error.message || error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const enrichedMeetings = useMemo(
+    () =>
+      meetings.map((meeting) => ({
+        ...normalizeMeeting(meeting),
+        actionItems: actionItems.filter((item) => item.meetingId === meeting.id),
+      })),
+    [meetings, actionItems]
+  );
+
+  const getMeetings = useCallback(() => enrichedMeetings, [enrichedMeetings]);
 
   const getMeeting = useCallback(
-    (id) => meetings.find((m) => m.id === id),
-    [meetings]
+    (id) => enrichedMeetings.find((meeting) => meeting.id === id),
+    [enrichedMeetings]
   );
 
-  const createMeeting = useCallback(
-    (data) => {
-      const meeting = {
-        id: generateId('m'),
-        ...data,
-        status: data.status || 'draft',
-        createdAt: new Date().toISOString().split('T')[0],
-        summary: data.summary || null,
-        decisions: data.decisions || [],
+  const loadMeeting = useCallback(async (id) => {
+    try {
+      const data = await apiGetMeetingById(id);
+      const serverMeeting = {
+        ...normalizeMeeting(data.meeting),
         actionItems: data.actionItems || [],
       };
-      persist([meeting, ...meetings]);
-      return meeting;
-    },
-    [meetings, persist]
-  );
 
-  const updateMeeting = useCallback(
-    (id, updates) => {
-      const updated = meetings.map((m) => (m.id === id ? { ...m, ...updates } : m));
-      persist(updated);
-      return updated.find((m) => m.id === id);
-    },
-    [meetings, persist]
-  );
-
-  const deleteMeeting = useCallback(
-    (id) => {
-      persist(meetings.filter((m) => m.id !== id));
-    },
-    [meetings, persist]
-  );
-
-  const processAI = useCallback(
-    async (meetingId) => {
-      const meeting = meetings.find((m) => m.id === meetingId);
-      if (!meeting) return null;
-
-      setProcessing(true);
-      setProcessingStep(0);
-
-      const steps = [
-        'Parsing transcript...',
-        'Extracting key decisions...',
-        'Identifying action items...',
-        'Assigning action item owners...',
-        'Generating executive summary...',
-      ];
-
-      for (let i = 0; i < steps.length; i++) {
-        setProcessingStep(i);
-        await new Promise((r) => setTimeout(r, 600));
-      }
-
-      const aiResults = simulateAIProcessing(meeting.transcript || '', meeting);
-      const updated = updateMeeting(meetingId, {
-        status: 'processed',
-        summary: aiResults.summary,
-        decisions: aiResults.decisions,
-        actionItems: aiResults.actionItems.map((a) => ({
-          ...a,
-          meetingId,
-          meetingTitle: meeting.title,
-        })),
+      setMeetings((current) => {
+        const exists = current.some((meeting) => meeting.id === id);
+        if (exists) {
+          return current.map((meeting) => (meeting.id === id ? serverMeeting : meeting));
+        }
+        return [serverMeeting, ...current];
       });
 
+      setActionItems((current) => [
+        ...current.filter((item) => item.meetingId !== id),
+        ...(data.actionItems || []),
+      ]);
+
+      return serverMeeting;
+    } catch (error) {
+      console.error('Failed to load meeting', error.message || error);
+      throw error;
+    }
+  }, []);
+
+  const createMeeting = useCallback(async (body) => {
+    setProcessing(true);
+    setProcessingStep(0);
+    const interval = setInterval(() => {
+      setProcessingStep((prev) => Math.min(prev + 1, 4));
+    }, 200);
+
+    try {
+      const { meeting, actionItems: newItems } = await apiCreateMeeting(body);
+      const enriched = {
+        ...normalizeMeeting(meeting),
+        actionItems: newItems || [],
+      };
+
+      setMeetings((current) => [enriched, ...current]);
+      setActionItems((current) => [...(newItems || []), ...current]);
+
+      return enriched;
+    } finally {
+      clearInterval(interval);
       setProcessing(false);
       setProcessingStep(0);
-      return updated;
-    },
-    [meetings, updateMeeting]
-  );
+    }
+  }, []);
 
-  const updateActionItem = useCallback(
-    (meetingId, actionId, updates) => {
-      const meeting = meetings.find((m) => m.id === meetingId);
-      if (!meeting) return;
+  const updateMeeting = useCallback(async (id, updates) => {
+    const updatedMeeting = await apiUpdateMeeting(id, updates);
+    setMeetings((current) =>
+      current.map((meeting) =>
+        meeting.id === id
+          ? {
+              ...meeting,
+              ...updatedMeeting,
+              participants: updatedMeeting.participants || meeting.participants || [],
+              status: updatedMeeting.status || meeting.status,
+            }
+          : meeting
+      )
+    );
+    return updatedMeeting;
+  }, []);
 
-      const actionItems = meeting.actionItems.map((a) =>
-        a.id === actionId ? { ...a, ...updates } : a
-      );
-      updateMeeting(meetingId, { actionItems });
-    },
-    [meetings, updateMeeting]
-  );
+  const deleteMeeting = useCallback(async (id) => {
+    await apiDeleteMeeting(id);
+    setMeetings((current) => current.filter((meeting) => meeting.id !== id));
+    setActionItems((current) => current.filter((item) => item.meetingId !== id));
+  }, []);
 
-  const addActionItem = useCallback(
-    (meetingId, actionData) => {
-      const meeting = meetings.find((m) => m.id === meetingId);
-      if (!meeting) return;
+  const addActionItem = useCallback(async (meetingId, actionData) => {
+    const created = await apiCreateActionItem({ meetingId, ...actionData });
+    setActionItems((current) => [created, ...current]);
+    setMeetings((current) =>
+      current.map((meeting) =>
+        meeting.id === meetingId
+          ? { ...meeting, actionItems: [...(meeting.actionItems || []), created] }
+          : meeting
+      )
+    );
+    return created;
+  }, []);
 
-      const newAction = {
-        id: generateId('a'),
-        status: 'Open',
-        priority: 'Medium',
-        ...actionData,
-        meetingId,
-        meetingTitle: meeting.title,
-      };
-      updateMeeting(meetingId, {
-        actionItems: [...(meeting.actionItems || []), newAction],
-      });
-      return newAction;
-    },
-    [meetings, updateMeeting]
-  );
+  const updateActionItem = useCallback(async (meetingId, actionId, updates) => {
+    const updated = await apiUpdateActionItem(actionId, updates);
+    setActionItems((current) => current.map((item) => (item.id === actionId ? updated : item)));
+    setMeetings((current) =>
+      current.map((meeting) =>
+        meeting.id === meetingId
+          ? {
+              ...meeting,
+              actionItems: (meeting.actionItems || []).map((item) =>
+                item.id === actionId ? updated : item
+              ),
+            }
+          : meeting
+      )
+    );
+    return updated;
+  }, []);
 
-  const allActionItems = useMemo(() => getAllActionItems(meetings), [meetings]);
+  const allActionItems = useMemo(() => actionItems, [actionItems]);
 
   const processingSteps = [
-    'Parsing transcript...',
-    'Extracting key decisions...',
-    'Identifying action items...',
-    'Assigning action item owners...',
-    'Generating executive summary...',
+    'Connecting to AI engine...',
+    'Analyzing transcript...',
+    'Extracting insights...',
+    'Creating action items...',
+    'Finalizing notes...',
   ];
 
   return (
     <MeetingContext.Provider
       value={{
-        meetings,
+        meetings: enrichedMeetings,
         loading,
         setLoading,
         processing,
@@ -157,10 +231,10 @@ export function MeetingProvider({ children }) {
         processingSteps,
         getMeetings,
         getMeeting,
+        loadMeeting,
         createMeeting,
         updateMeeting,
         deleteMeeting,
-        processAI,
         updateActionItem,
         addActionItem,
         allActionItems,

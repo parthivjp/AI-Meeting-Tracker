@@ -8,6 +8,7 @@ const pageTitles = {
   '/meetings': 'Meetings',
   '/meetings/new': 'Create Meeting',
   '/action-tracker': 'Action Tracker',
+  '/profile': 'Profile',
 };
 
 export default function AppLayout() {

@@ -11,6 +11,7 @@ import MeetingList from './pages/MeetingList';
 import MeetingCreate from './pages/MeetingCreate';
 import MeetingDetails from './pages/MeetingDetails';
 import ActionTracker from './pages/ActionTracker';
+import Profile from './pages/Profile';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -35,6 +36,7 @@ function AppRoutes() {
         <Route path="meetings/new" element={<MeetingCreate />} />
         <Route path="meetings/:id" element={<MeetingDetails />} />
         <Route path="action-tracker" element={<ActionTracker />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -16,7 +16,7 @@ const ACCEPTED_TYPES = ['.txt', '.doc', '.docx', '.pdf'];
 
 export default function MeetingCreate() {
   const navigate = useNavigate();
-  const { createMeeting, processAI, processing } = useMeetings();
+  const { createMeeting, processing } = useMeetings();
   const { addToast } = useToast();
 
   const [form, setForm] = useState({
@@ -80,18 +80,16 @@ export default function MeetingCreate() {
   const handleProcess = async () => {
     if (!validate()) return;
 
-    const meeting = createMeeting({
-      ...form,
-      status: 'draft',
-    });
-
     setShowAI(true);
     try {
-      await processAI(meeting.id);
+      const meeting = await createMeeting({
+        ...form,
+      });
       addToast('Meeting processed successfully!', 'success');
       setShowAI(false);
       navigate(`/meetings/${meeting.id}`);
-    } catch {
+    } catch (error) {
+      console.error('Create meeting error', error);
       addToast('Failed to process transcript', 'error');
       setShowAI(false);
     }

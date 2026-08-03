@@ -6,6 +6,11 @@ import { useMeetings } from '../../context/MeetingContext';
 import { useToast } from '../common/Toast';
 import { ACTION_STATUSES } from '../../data/mockData';
 
+function stripHtml(html) {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 const tabs = [
   { id: 'summary', label: 'AI Summary', icon: Sparkles },
   { id: 'decisions', label: 'Key Decisions', icon: FileText },
@@ -141,14 +146,13 @@ export default function TranscriptTabs({ meeting }) {
           <Card className="max-h-[500px] overflow-y-auto">
             {plainText ? (
               <pre className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300 font-mono leading-relaxed">
-                {meeting.transcript || 'No transcript available'}
+                {stripHtml(meeting.transcript || 'No transcript available')}
               </pre>
             ) : (
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                {(meeting.transcript || '').split('\n').map((line, i) => (
-                  <p key={i} className="text-sm text-slate-700 dark:text-slate-300 mb-2">{line}</p>
-                ))}
-              </div>
+              <div
+                className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
+                dangerouslySetInnerHTML={{ __html: meeting.transcript || '<p>No transcript available</p>' }}
+              />
             )}
           </Card>
         </div>
