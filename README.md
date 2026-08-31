@@ -378,9 +378,9 @@ Open the app at the URL Vite prints — usually **http://localhost:5173** 🎉
 
 ---
 
-## 📄 License
+<!-- ## 📄 License
 
-Distributed under the **MIT License**. Feel free to use, modify, and build on top of this project.
+Distributed under the **MIT License**. Feel free to use, modify, and build on top of this project. -->
 
 <div align="center">
 
