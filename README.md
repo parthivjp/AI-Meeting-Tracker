@@ -31,6 +31,7 @@
 - [Tech Stack](#-tech-stack)
 - [Architecture](#-architecture)
 - [Application Structure](#-application-structure)
+- [Backend Details](#-backend-details)
 - [Database Schema](#-database-schema)
 - [Transcript Processing Flow](#-transcript-processing-flow)
 - [API Reference](#-api-reference)
@@ -166,6 +167,33 @@ zignuts-ai-meeting-tracker/
 
 ---
 
+## ⚙️ Backend Details
+
+The API is an Express 5 application started from `server/server.js`. It loads `server/.env`, initiates a MongoDB connection, parses JSON request bodies up to 10 MB, and mounts resource routers under `/api`. Controllers own request validation and resource operations; Mongoose models define persisted data; authentication middleware protects user-specific routes.
+
+### Authentication and data ownership
+
+- `POST /api/auth/register` and `POST /api/auth/login` are public. Passwords are hashed with `bcryptjs`; successful responses include a JWT and a password-free user object.
+- Tokens are signed with `JWT_SECRET`, expire after 30 days, and are sent as `Authorization: Bearer <token>`.
+- Profile, meeting, action-item, and dashboard-stat routes require a valid token. Their database queries are scoped to the authenticated user's ID, including reads, updates, and deletes.
+- Creating an action item requires a meeting owned by the same user. Deleting a meeting also deletes its associated action items.
+
+### Meeting and AI processing
+
+`POST /api/meetings` requires `title`, `date`, and `transcript`. The API sends the transcript to Gemini, normalizes the result into a summary, decisions, and action items, then stores the meeting and generated actions. The accepted summary fields are `purpose`, `discussionPoints`, `outcomes`, `concerns`, and `nextSteps`. Action-item priorities are `Low`, `Medium`, or `High`; statuses are `Open`, `In Progress`, `Blocked`, or `Completed`.
+
+The optional `GEMINI_MODEL` setting accepts `gemini-flash-latest` or `gemini-2.5-flash`. The backend tries the other supported model when a model is reported unavailable. If AI processing still fails, it returns a built-in sample result so meeting creation can complete; that fallback is illustrative data, not an analysis of the supplied transcript.
+
+### Dashboard statistics
+
+`GET /api/actions/stats` returns the current user's meeting and action-item totals, counts for non-completed (`Open`, `In Progress`, or `Blocked`), completed, and overdue actions, and up to five most recent meetings. An action is overdue when its due date is before today and its status is not `Completed`.
+
+### Errors and operational notes
+
+Responses use JSON. Missing or invalid authentication returns `401`; malformed IDs return `400`; unknown or non-owned resources return `404`; duplicate values and schema validation errors return `400`. Other failures return `500` unless an error provides a status code. CORS currently allows requests from any origin, so production deployments should restrict it to the intended frontend origin.
+
+---
+
 ## 🗄 Database Schema
 
 ```mermaid
@@ -236,6 +264,8 @@ sequenceDiagram
 
 ## 📡 API Reference
 
+All endpoints use the `/api` prefix. Register, login, and the health check are public; all profile, meeting, action-item, and stats endpoints require `Authorization: Bearer <token>`. Requests and responses use JSON.
+
 <details>
 <summary><b>🔐 Authentication</b></summary>
 
@@ -278,6 +308,9 @@ sequenceDiagram
 | `POST` | `/api/actions` | Create an action item |
 | `PUT` | `/api/actions/:id` | Update action item fields |
 | `DELETE` | `/api/actions/:id` | Delete an action item |
+| `GET` | `/api/actions/stats` | Get dashboard totals, action counts, and recent meetings |
+
+`GET /api/meetings?search=<term>` searches meeting titles, transcripts, purpose, and summaries. `GET /api/actions` accepts `status`, `priority`, `owner`, and `search` query parameters; search matches task and owner text.
 
 </details>
 
@@ -342,8 +375,9 @@ Open the app at the URL Vite prints — usually **http://localhost:5173** 🎉
 | `MONGO_URI` | MongoDB connection string | `mongodb://127.0.0.1:27017/meeting_tracker` |
 | `JWT_SECRET` | Secret used to sign JWT tokens | `your_jwt_secret` |
 | `GEMINI_API_KEY` | Google Generative AI API key | `your_gemini_api_key` |
+| `GEMINI_MODEL` | Optional supported Gemini model; defaults to `gemini-flash-latest` | `gemini-2.5-flash` |
 
-> 💡 `API_BASE_URL` in `src/services/api.js` defaults to `http://localhost:5000/api`. JWT tokens are stored in `localStorage` and attached automatically to outgoing requests. If the configured Gemini model is unavailable, `server/utils/geminiAi.js` falls back to a mock AI result.
+> 💡 The API URL is currently set to `http://localhost:5000/api` in `src/services/api.js` (it is not read from an environment variable). The frontend stores JWT tokens in `localStorage` and attaches them to API requests. If Gemini is unavailable or processing fails, the backend uses the illustrative fallback described above.
 
 ---
 
@@ -354,18 +388,28 @@ Open the app at the URL Vite prints — usually **http://localhost:5173** 🎉
 <tr><td rowspan="3">Root (frontend)</td><td><code>npm run dev</code></td><td>Start the frontend dev server</td></tr>
 <tr><td><code>npm run build</code></td><td>Build frontend for production</td></tr>
 <tr><td><code>npm run preview</code></td><td>Preview the production build</td></tr>
+<tr><td>Root (frontend)</td><td><code>npm run lint</code></td><td>Run Oxlint on the frontend project</td></tr>
 <tr><td rowspan="2"><code>server/</code></td><td><code>npm run start</code></td><td>Start the backend once</td></tr>
 <tr><td><code>npm run dev</code></td><td>Start the backend with <code>nodemon</code></td></tr>
 </table>
+
+The backend includes a standalone API integration check. Start the backend with MongoDB available, then run this from `server/` in another terminal:
+
+```bash
+node scripts/integration-test.js
+```
+
+It creates a test user, exercises the main API flows, and removes the test meeting and its action items. The test user remains in the database. This script is not wired to `npm test`; the backend package's `test` command is currently a placeholder.
 
 ---
 
 ## ⚠️ Known Limitations
 
-- 🚫 No frontend test suite included
-- 🚫 Backend tests are not implemented
+- 🚫 No automated frontend test suite is configured
+- 🚫 The backend's `npm test` command is a placeholder; use the standalone integration check described above for API coverage
 - 🔑 Gemini AI integration requires a valid Google Generative AI API key and supported model
 - 🖥️ Assumes a local MongoDB instance by default
+- 🌐 Backend CORS currently accepts any origin and should be restricted for production
 
 ---
 
