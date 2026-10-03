@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=200&section=header&text=Zignuts%20AI%20Meeting%20Tracker&fontSize=42&fontColor=ffffff&animation=fadeIn&fontAlignY=35&desc=Transcript%20Intelligence%20%E2%80%A2%20Action%20Tracking%20%E2%80%A2%20AI%20Summaries&descAlignY=55&descSize=18" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=200&section=header&text=AI%20Meeting%20Tracker&fontSize=42&fontColor=ffffff&animation=fadeIn&fontAlignY=35&desc=Transcript%20Intelligence%20%E2%80%A2%20Action%20Tracking%20%E2%80%A2%20AI%20Summaries&descAlignY=55&descSize=18" width="100%"/>
 
 <img src="https://readme-typing-svg.demolab.com/?lines=Capture+meetings.+Extract+decisions.+Track+actions.;Built+with+React+%2B+Node+%2B+MongoDB+%2B+Gemini+AI;Full-stack.+Production-ready.+AI-powered.&font=Fira+Code&center=true&width=600&height=40&color=6C63FF&vCenter=true&size=22" alt="Typing SVG" />
 
@@ -46,7 +46,7 @@
 
 ## 🚀 Overview
 
-**AI Meeting Tracker** is a full-stack web application that turns raw meeting transcripts into structured, actionable data. Drop in a transcript, and the app uses **Gemini AI** to generate summaries, extract key decisions, and surface action items — complete with owners, due dates, and priorities.
+**Zignuts AI Meeting Tracker** is a full-stack web application that turns raw meeting transcripts into structured, actionable data. Drop in a transcript, and the app uses **Gemini AI** to generate summaries, extract key decisions, and surface action items — complete with owners, due dates, and priorities.
 
 The project is split into two independently runnable parts:
 
