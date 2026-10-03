@@ -46,7 +46,7 @@
 
 ## 🚀 Overview
 
-**Zignuts AI Meeting Tracker** is a full-stack web application that turns raw meeting transcripts into structured, actionable data. Drop in a transcript, and the app uses **Gemini AI** to generate summaries, extract key decisions, and surface action items — complete with owners, due dates, and priorities.
+**AI Meeting Tracker** is a full-stack web application that turns raw meeting transcripts into structured, actionable data. Drop in a transcript, and the app uses **Gemini AI** to generate summaries, extract key decisions, and surface action items — complete with owners, due dates, and priorities.
 
 The project is split into two independently runnable parts:
 
