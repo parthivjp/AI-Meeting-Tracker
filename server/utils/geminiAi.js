@@ -1,6 +1,11 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+// Gemini model names supported by the app. The first model is the preferred default,
+// while the second acts as a backup when the default is unavailable or disabled.
 const SUPPORTED_GEMINI_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash'];
+
+// Read the configured model from environment and normalize it to a safe default so the
+// app keeps working even if the user sets an unsupported or blank model name.
 const requestedGeminiModel = process.env.GEMINI_MODEL?.trim();
 const DEFAULT_GEMINI_MODEL = SUPPORTED_GEMINI_MODELS.includes(requestedGeminiModel)
   ? requestedGeminiModel
@@ -12,6 +17,8 @@ if (requestedGeminiModel && requestedGeminiModel !== DEFAULT_GEMINI_MODEL) {
   );
 }
 
+// AI_PROMPT tells Gemini exactly what JSON schema to return. Keeping the schema strict
+// makes downstream parsing predictable and prevents malformed output from breaking the app.
 const AI_PROMPT = (transcript) => `Analyze the following meeting transcript and return STRICT VALID JSON ONLY (no extra text, no markdown backticks, no code fences). Use this exact structure:
 
 {
@@ -43,6 +50,8 @@ const AI_PROMPT = (transcript) => `Analyze the following meeting transcript and 
 Transcript:
 ${transcript}`;
 
+// Raw Gemini output may be wrapped in markdown code fences or contain extra commentary.
+// This helper strips that wrapper and extracts the JSON object that we can safely parse.
 function sanitizeJsonText(raw) {
   if (!raw || typeof raw !== 'string') return '{}';
   let text = raw.trim();
@@ -55,6 +64,8 @@ function sanitizeJsonText(raw) {
   return text;
 }
 
+// Fallback data used when all Gemini models fail. This keeps the feature functional and
+// gives the API a consistent response shape even in degraded or offline scenarios.
 function getMockAiResult(transcript) {
   const snippet =
     typeof transcript === 'string' && transcript.length > 0
@@ -97,6 +108,8 @@ function getMockAiResult(transcript) {
   };
 }
 
+// Call the configured Gemini model and parse the returned JSON structure. Any malformed
+// output is sanitized before parsing so the app can recover from formatting noise.
 async function callModel(modelName, transcript) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: modelName });
@@ -106,6 +119,8 @@ async function callModel(modelName, transcript) {
   return JSON.parse(sanitizeJsonText(text));
 }
 
+// Normalize the AI response into the app's internal contract. The model may return slightly
+// different field names or empty data, so we coerce value shapes into consistent arrays.
 function normalizeAiResult(parsed) {
   const summaryObj = parsed.summary || {};
   const summary = {
@@ -163,6 +178,8 @@ function normalizeAiResult(parsed) {
   return { summary, decisions, actionItems };
 }
 
+// Try each supported Gemini model in order until one returns valid structured output.
+// If all attempts fail, the function falls back to deterministic mock data to keep the API stable.
 async function processTranscriptWithAI(transcript) {
   const modelsToTry = [
     DEFAULT_GEMINI_MODEL,
